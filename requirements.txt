@@ -1,0 +1,7 @@
+psycopg2-binary
+numpy
+pandas
+matplotlib
+plotly-calplot
+dash
+dash_bootstrap_components

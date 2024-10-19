@@ -1,0 +1,18 @@
+.app-header {
+/*    height: 60px; */
+/*    line-height: 24px;*/
+    border-bottom: thin lightgrey solid;
+    font-size: large;
+}
+
+.nav-header {
+    height: 60px;
+    border-bottom: thin rgb(139, 133, 133) solid;
+    font-size: small;
+    background-color: aquamarine;
+}
+
+.app-header .app-header--title {
+    font-size: 22px;
+    padding-left: 5px;
+}
