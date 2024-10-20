@@ -1,7 +1,6 @@
 import logging
 import urllib
 
-
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -79,7 +78,7 @@ DATA_TABLE_STYLE = {
     ],
 }
 
-def get_default_table():
+def load_data():
     logging.debug("loaded default table")
 
     connection, cursor = connect()
@@ -109,14 +108,19 @@ group by project.name, project.id, project_status.name;
         con=connection,
     )
 
+    # add caculated fields
     df = df.assign(index_count=lambda x: x.id)
     df = df.assign(perc_completed=lambda x: (x.completed_tasks / x.total_tasks * 100).round(2))
-    df = add_finish_column(df)
+
+    # add chart helpers
+    df = df.assign(Start = lambda x: x.start_date)
+    df = df.assign(Finish = lambda x: x.end_date)
+
+    df = df.assign(Duration = lambda x: (pd.to_datetime(x.end_date) - pd.to_datetime(x.start_date)))    
     return df
 
-
 def add_finish_column(timeline_df: pd.DataFrame):
-    logging.debug("adding calcuated fields")
+    logging.debug("adding calculated fields")
 
     """
     This function is creates 'Finish' column which is a required column for timeline chart.
@@ -134,7 +138,11 @@ def add_finish_column(timeline_df: pd.DataFrame):
     return timeline_df
 
 def create_gantt_chart(df):
+    logging.debug("creating gantt chart")
     logging.debug(df)
+
+    if df.empty:
+        return html.Div("No data to display")
 
     fig = px.timeline(
         df,
@@ -166,6 +174,8 @@ def create_gantt_chart(df):
 
     return fig
 
+logging.debug("loading data: project summary")
+data = load_data().to_dict("records")
 
 layout = html.Div([
     html.H1('Projects'),
@@ -176,7 +186,7 @@ layout = html.Div([
             id="user-datatable",
             sort_action="native",
             columns=DATA_TABLE_COLUMNS,
-            data=get_default_table().to_dict("records"),
+            data=data,
             css=DATA_TABLE_STYLE.get("css"),
             page_size=10,
             row_deletable=True,
@@ -198,30 +208,28 @@ layout = html.Div([
     Output("gantt-graph", "figure"),
         
     Input("user-datatable", "derived_virtual_data"),
-    Input('page-load-trigger', 'children'),
 )
 
-def update_page(user_datatable, data):
-
-    logging.debug(f"User datatable: {user_datatable}")
-    logging.debug(f"Data: {data}")
+def update_page(data):
+    logging.debug(f"User datatable: {data}")
 
     # if user deleted all rows, return the default row:
-    if not user_datatable:
+    if not data:
         updated_table = pd.DataFrame()
 
     else:
-        updated_table = pd.DataFrame(user_datatable)
+        updated_table = pd.DataFrame(data)
 
-    updated_table_as_df = add_finish_column(updated_table)
-    gantt_chart = create_gantt_chart(updated_table_as_df)
+    ### updated_table_as_df = add_finish_column(updated_table)
+    gantt_chart = create_gantt_chart(updated_table)
 
-    return updated_table_as_df.to_dict("records"), gantt_chart
+    updated_table = updated_table.to_dict("records")    
+    return updated_table, gantt_chart
 
 @callback(
     Output('drilldown-link', 'href'),
     Output('drilldown-link', 'style'),
-    ##Output('drill-down', 'project-details-content.children'),
+
     Input('gantt-graph', 'clickData')
 )
 def drilldown(event):

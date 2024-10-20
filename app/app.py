@@ -11,7 +11,13 @@ import dash_bootstrap_components as dbc
 
 from dash import Dash, html, dcc
 
-app = Dash(__name__, use_pages=True)
+app = Dash(
+    __name__,
+    use_pages=True,
+    external_stylesheets=[dbc.themes.SPACELAB],
+    suppress_callback_exceptions=False,
+    prevent_initial_callbacks=True,
+)
 
 app.layout = dbc.Container(
     [
@@ -44,7 +50,7 @@ app.layout = dbc.Container(
                     ]
                 ),
             ],
-        ),        
+        ),
         html.Div(
             className="body",
             children=[

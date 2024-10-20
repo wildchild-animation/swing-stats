@@ -10,8 +10,7 @@ logging.basicConfig(
 import datetime
 
 import dash
-from dash import dcc, html, Input, Output, ClientsideFunction, callback
-import dash_ag_grid as dag
+from dash import dcc, dash_table, html, Input, Output, ClientsideFunction, callback
 
 import numpy as np
 import pandas as pd
@@ -19,7 +18,7 @@ import pandas as pd
 
 from database import connect
 
-dash.register_page(__name__, order = 100, path = "/project-details")
+dash.register_page(__name__, order = 100, path = "/project-nav")
 
 def load_data():
     logging.debug("loaded default table")
@@ -176,8 +175,16 @@ df = load_data()
 
 df = df.assign(Duration = lambda x: (pd.to_datetime(x.task_end_date) - pd.to_datetime(x.task_start_date)))    
 
-department_list = df["department"].unique().tolist()
 project_list = df["project"].unique().tolist()
+department_list = df["department"].unique().tolist()
+
+episode_list = df["episode"].unique().tolist()
+task_type_list = df["task_type"].unique().tolist()
+task_status_list = df["task_status"].unique().tolist()
+artist_list = df["artists"].unique().tolist()
+
+grid = None
+
 
 def generate_table_div():
     """ Generate table rows.
@@ -239,25 +246,50 @@ def generate_table_div():
         { 'field': 'artists' },
     ]
 
-    grid = dag.AgGrid(
-        id="getting-started-headers",
-        style= {"height": '800px', "width": '100%'},
-        rowData=df.to_dict("records"),
-        columnDefs=columnDefs,
-        #columnSize="responsiveSizeToFit",
-        columnSize="autoSize",
-        dashGridOptions={'pagination': True, 'pageSize': 100 }
+    ##data_table =     dash_table.DataTable(
+    ##    id='datatable-interactivity',
+
+    #grid = dag.AgGrid(
+    #    id="nav-datatable",
+    #    style= {"height": '800px', "width": '100%'},
+    #    rowData=df.to_dict("records"),
+    #    columnDefs=columnDefs,
+    #    #columnSize="responsiveSizeToFit",
+    #    columnSize="autoSize",
+    #    dashGridOptions={'pagination': True, 'pageSize': 100 }
 
         
-    )
-
-
     return html.Div(
-        className="table-data project-details",
+        className="body",
         children=[
-            grid
-        ],
+            html.Div(
+                className="nav",
+
+                children=[
+                    dcc.Checklist(project_list, value=project_list, id="project_list"),                    
+                    dcc.Dropdown(task_status_list, value=task_status_list, id="task_status"),
+                    dcc.Dropdown(task_type_list, value=task_type_list, id="task_type"),
+                    dcc.Checklist(department_list, value=department_list, id="department"),
+                    dcc.Dropdown(episode_list, value=episode_list, id="episode"),                    
+                ],
+            ),
+
+            html.Div(
+                id="nav-datatable",
+                className="datatable-interactivity",
+            )
+        ]
     )
+
+#@callback(
+    #Output('datatable-interactivity', 'style_data_conditional'),
+    #Input('datatable-interactivity', 'selected_columns')
+#)
+def update_styles(selected_columns):
+    return [{
+        'if': { 'column_id': i },
+        'background_color': '#D2F3FF'
+    } for i in selected_columns]    
 
 def layout(**kwargs):
     return html.Div(
@@ -275,3 +307,57 @@ def layout(**kwargs):
                 children=[]
             ),            
         ])
+
+@callback(
+    Output('nav-datatable', 'children'),
+
+    Input('project_list', 'value'),
+    Input('department', 'value'),
+    Input('episode', 'value'),
+    )
+
+def update_graphs(project, department,  episode=None, task_type=None, task_status=None, artist=None):
+    # When the table is first rendered, `derived_virtual_data` and
+    # `derived_virtual_selected_rows` will be `None`. This is due to an
+    # idiosyncrasy in Dash (unsupplied properties are always None and Dash
+    # calls the dependent callbacks when the component is first rendered).
+    # So, if `rows` is `None`, then the component was just rendered
+    # and its value will be the same as the component's dataframe.
+    # Instead of setting `None` in here, you could also set
+    # `derived_virtual_data=df.to_rows('dict')` when you initialize
+    # the component.
+
+    dff = df.copy()
+
+    if project:
+        dff = dff[dff['project'].isin(project)]
+
+    if department:
+        dff = dff[dff['department'].isin(department)]
+
+    if episode:
+        dff = dff[dff['episode'].isin(episode)]
+
+    # Add additional filters for task_type, task_status, artist if needed
+
+    return dash_table.DataTable(
+        id='datatable-interactivity',
+        columns=[
+            {"name": i, "id": i, "deletable": True, "selectable": True} for i in df.columns
+        ],
+        data=dff.to_dict('records'),
+        editable=True,
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable="single",
+        row_selectable="multi",
+        row_deletable=True,
+        selected_columns=[],
+        selected_rows=[],
+        page_action="native",
+        page_current= 0,
+        page_size= 100,
+    ),    
+
+    return dff.to_dict('records')
