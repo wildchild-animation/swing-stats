@@ -9,12 +9,14 @@ logging.basicConfig(
 import dash
 import dash_bootstrap_components as dbc
 
+from datetime import datetime
+
 from dash import Dash, html, dcc
 
 app = Dash(
     __name__,
     use_pages=True,
-    external_stylesheets=[dbc.themes.SPACELAB],
+    external_stylesheets=[dbc.themes.MORPH, dbc.icons.FONT_AWESOME],
     suppress_callback_exceptions=False,
     prevent_initial_callbacks=True,
 )
@@ -24,7 +26,6 @@ app.layout = dbc.Container(
         html.Div(
             className="app-header",
             children=[
-                dbc.Row([dbc.Col(html.H1("Treehouse: Dash Pages"), className="mb-4")]),
             ],
         ),
         html.Div(
@@ -37,8 +38,8 @@ app.layout = dbc.Container(
                                 [
                                     dbc.NavItem(
                                         dbc.NavLink(
-                                            f"{page['name']} - {page['path']}",
-                                            href=page["relative_path"],
+                                            # f"{page['name']} - {page['path']}",
+                                            f"{page['name']}", href=page["relative_path"],
                                         )
                                     )
                                     for page in dash.page_registry.values()
@@ -57,9 +58,21 @@ app.layout = dbc.Container(
                 dbc.Row([dbc.Col(dash.page_container, width=12)]),
             ],
         ),
+        html.Div(
+            className="footer",
+            children=[
+                html.P(
+                    [
+                        f"Current Time: {datetime.now().strftime('%A, %B %d, %Y %I:%M %p')}",
+                        html.Br(),
+                        f"© {datetime.now().year} - wild child animation",
+                    ]
+                )
+            ],
+        ),        
     ],
     fluid=True,
 )
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=False, port=80, host="0.0.0.0")

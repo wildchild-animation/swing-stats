@@ -10,73 +10,14 @@ logging.basicConfig(
 import dash
 from dash import html, dcc, callback, Input, Output, html, dcc, Input, Output, dash_table
 
+import dash_ag_grid as dag
+
 import pandas as pd
 import plotly.express as px
 
 from database import connect
 
-dash.register_page(__name__, order = 1)
-
-DATA_TABLE_COLUMNS = [
-    #{
-    #    "id": "id",
-    #    "name": "id",
-    #    "visible": False,
-    #},
-    {
-        "id": "name",
-        "name": "name",
-    },
-    {"id": "start_date", "name": "Start", "type": "datetime", "editable":False},
-    {"id": "start_date", "name": "End", "type": "datetime", "editable": False},
-
-    {
-        "id": "total_tasks",
-        "name": "total_tasks",
-        "type": "numeric",
-    },
-
-    {
-        "id": "completed_tasks",
-        "name": "completed_tasks",
-        "type": "numeric",
-    }, 
-
-    {
-        "id": "perc_completed",
-        "name": "perc_completed",
-        "type": "numeric",
-    },                   
-
-    {
-        "id": "duration",
-        "name": "duration",
-        "type": "numeric",
-    },
-
-    {
-        "id": "project_status",
-        "name": "status",
-    }
-    #{"id": "Resource", "name": "Resource", "presentation": "dropdown"},
-]
-
-DATA_TABLE_STYLE = {
-    "style_data_conditional": [
-        {"if": {"column_id": "Finish"}, "backgroundColor": "#eee"}
-    ],
-    "style_header": {
-        "color": "white",
-        "backgroundColor": "#799DBF",
-        "fontWeight": "bold",
-    },
-    "css": [
-        {
-            "selector": ".Select-value",
-            "rule": "padding-right: 22px",
-        },  # makes space for the dropdown caret
-    ],
-}
+dash.register_page(__name__, order = 10)
 
 def load_data():
     logging.debug("loaded default table")
@@ -86,7 +27,7 @@ def load_data():
     df = pd.read_sql_query(
         """
 select 
-	project.name, project.id, project.start_date, project.end_date, 
+	project.name as project, project_status.name as project_status, project.id, project.start_date, project.end_date, 
     (
     	select count(*) from task left outer join task_status on task.task_status_id = task_status.id where task.project_id = project.id
     ) as total_tasks,
@@ -94,14 +35,14 @@ select
     	select count(*) from task left outer join task_status on task.task_status_id = task_status.id where task.project_id = project.id and task_status.is_done
     ) as completed_tasks,
     
-    project.end_date - project.start_date as duration,
-    
-    project_status.name as project_status
+    project.end_date - project.start_date as duration
         
 from
 	project   
 left outer join 
 	project_status on project.project_status_id = project_status.id
+where
+    project_status.name in ('Open')
 group by project.name, project.id, project_status.name;
 
     """,
@@ -138,8 +79,8 @@ def add_finish_column(timeline_df: pd.DataFrame):
     return timeline_df
 
 def create_gantt_chart(df):
-    logging.debug("creating gantt chart")
-    logging.debug(df)
+    #logging.debug("creating gantt chart")
+    #logging.debug(df)
 
     if df.empty:
         return html.Div("No data to display")
@@ -148,7 +89,7 @@ def create_gantt_chart(df):
         df,
         x_start="start_date",
         x_end="end_date",
-        y=df.name,
+        y=df.project,
         color="perc_completed",
         title="",
         color_continuous_scale=[[0, "grey"], [1, "green"]],  # Red at 0%, Green at 100%
@@ -175,63 +116,92 @@ def create_gantt_chart(df):
     return fig
 
 logging.debug("loading data: project summary")
-data = load_data().to_dict("records")
+df = load_data()
 
-layout = html.Div([
-    html.H1('Projects'),
-    html.Div([
-        dcc.Graph(id="gantt-graph"),  
+# Just open projects for now
+## df = df[df['project_status'] == "Open"]
 
-        dash_table.DataTable(
-            id="user-datatable",
-            sort_action="native",
-            columns=DATA_TABLE_COLUMNS,
-            data=data,
-            css=DATA_TABLE_STYLE.get("css"),
-            page_size=10,
-            row_deletable=True,
-            style_data_conditional=DATA_TABLE_STYLE.get("style_data_conditional"),
-            style_header=DATA_TABLE_STYLE.get("style_header"),
+def layout(**kwargs):
+    return html.Div(
+        [
+            html.H1("Running Projects"),
+            html.Div(
+                className="nav-header",
+            ),
+            html.Div(
+                className="body",
+                children=[
+                    html.Div(
+                        id="project_summary_datatable",
+                        className="datatable-interactivity",
+                    ),
+                    html.Div(
+                        id="project_summary_figure",
+                        className="datatable-interactivity",
+                    ),
+                ],
+            ),
+        ]
+    )
+@callback(
+    Output("project_summary_datatable", "children"),
+    Output("project_summary_figure", "children"),
+
+    Input("project_summary_figure", "n_clicks"),
+)
+
+def update_page(n_clicks):
+
+    ##dff = df.copy()
+    ##logging.debug(f"User datatable: {data}")
+    # if user deleted all rows, return the default row:
+
+    columnsDefs = [
+        {"field": "project", "headerName": "Project"},
+        {"field": "start_date", "headerName": "Start"},
+        {"field": "end_date", "headerName": "End"},
+        {"field": "duration", "headerName": "Production Days"},
+        {"field": "total_tasks", "headerName": "Total Tasks"},
+        {"field": "completed_tasks", "headerName": "Completed Tasks"},
+        {"field": "perc_completed", "headerName": "%"},
+
+    ]
+
+    defaultColDef = {"editable": True, "filter": True}
+
+    data_table = dag.AgGrid(
+            id="datatable-interactivity",
+            rowData=df.to_dict("records"),
+            defaultColDef=defaultColDef,
+            columnDefs=columnsDefs,
+            columnSize="auto",
+            dashGridOptions={"animateRows": False},
+            className="ag-theme-alpine-dark",            
+            # editable=True,
+            # filter_action="native",
+            # sort_action="native",
+            # sort_mode="multi",
+            # column_selectable="single",
+            ## row_selectable="multi",
+            # row_deletable=True,
+            # selected_columns=[],
+            # selected_rows=[],
+            # page_action="native",
+            # page_current= 0,
+            # page_size= 100,
         ),
 
-        # My Page Init ...
-        html.Div(id='page-load-trigger', style={'display': 'none'}, children='trigger'),
-
-        # Drill down handler
-        dcc.Link(id='drilldown-link', href='', children='Drill Down', style={'display': 'none'})
-      
-    ]),
-    html.Br(),
-])
-@callback(
-    Output("user-datatable", "data"),
-    Output("gantt-graph", "figure"),
-        
-    Input("user-datatable", "derived_virtual_data"),
-)
-
-def update_page(data):
-    logging.debug(f"User datatable: {data}")
-
-    # if user deleted all rows, return the default row:
-    if not data:
-        updated_table = pd.DataFrame()
-
-    else:
-        updated_table = pd.DataFrame(data)
-
     ### updated_table_as_df = add_finish_column(updated_table)
-    gantt_chart = create_gantt_chart(updated_table)
+    figure = create_gantt_chart(df)
 
-    updated_table = updated_table.to_dict("records")    
-    return updated_table, gantt_chart
+    return data_table, dcc.Graph(figure=figure)
 
-@callback(
-    Output('drilldown-link', 'href'),
-    Output('drilldown-link', 'style'),
+#@callback(
+#    Output('drilldown-link', 'href'),
+#    Output('drilldown-link', 'style'),#
 
-    Input('gantt-graph', 'clickData')
-)
+    #Input('gantt-graph', 'clickData')
+#)
 def drilldown(event):
     logging.debug(f"Drilldown clicked: {event}")
 

@@ -1,3 +1,52 @@
+html, body, #root, .container-fluid {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Hide scrollbars by default */
+}
+
+.container-fluid {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensure the container takes the full height of the viewport */
+}
+
 .body {
-    background-color: beige;
+    flex: 1 1 auto;
+    overflow: auto;
+    font-family: "Roboto", sans-serif;
+    margin: 20px; /* 20px margin all around */
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px;
+}
+
+.footer {
+    flex-shrink: 0; /* Prevent the footer from shrinking */
+    height: 100px;
+    background-color: #f8f9fa; /* Optional: Add a background color to the footer */
+    text-align: center; /* Optional: Center the text in the footer */
+    padding: 10px; /* Optional: Add some padding to the footer */
+}
+.ag-theme-alpine {
+    --ag-card-radius: 10px !important;
+    --ag-card-shadow: 0 10px 40px rgb(83, 0, 106) !important;
+    --ag-popup-shadow: var(--ag-card-shadow) !important;
+}
+
+.ag-theme-alpine .ag-menu {
+    background-color: rgb(244, 220, 250) !important;
+}
+
+.center-aligned-header .ag-header-cell-label {
+    justify-content: center;
+}
+
+.center-aligned-cell {
+    text-align: center;
 }

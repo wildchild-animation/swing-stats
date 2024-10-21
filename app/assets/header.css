@@ -9,7 +9,14 @@
     height: 60px;
     border-bottom: thin rgb(139, 133, 133) solid;
     font-size: small;
-    background-color: aquamarine;
+    /* background-color: aquamarine; */
+}
+
+.nav-combo {
+    height: 260px;
+    border-bottom: thin rgb(139, 133, 133) solid;
+    font-size: small;
+    /* background-color: aquamarine; */
 }
 
 .app-header .app-header--title {

@@ -3,18 +3,18 @@ import dash
 from dash import html
 from datetime import datetime
 
-dash.register_page(__name__, path="/")
+dash.register_page(__name__, path="/", order=0)
 
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1('Projects'),
             html.Div(
                 className="nav-header",
-                children=[]
             ),
             html.Div(
                 className="body",
-                children=[]
+                children=[
+                    html.P("Treehouse: Metrics Datastore"),
+                ]
             ),            
         ])
