@@ -115,7 +115,7 @@ def create_gantt_chart(df):
 
     return fig
 
-logging.debug("loading data: project summary")
+logging.debug(f"loading data: {__name__}")
 df = load_data()
 
 # Just open projects for now
@@ -174,7 +174,7 @@ def update_page(n_clicks):
             rowData=df.to_dict("records"),
             defaultColDef=defaultColDef,
             columnDefs=columnsDefs,
-            columnSize="auto",
+            columnSize="sizeToFit",
             dashGridOptions={"animateRows": False},
             className="ag-theme-alpine-dark",            
             # editable=True,

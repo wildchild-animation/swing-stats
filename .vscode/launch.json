@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
@@ -24,8 +25,30 @@
                 //"V:/productions/PRP/prp_common/prp_server.config.json",
                 //"--episode", "prp_ep121",
                 //"--tab", "PRP_121_IMPERFECT",
-            ]                
-        },       
+            ],    
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"
+            }                        
+        },   
+
+        {
+            "name": "Run Dash",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.app",
+            "console": "integratedTerminal",
+            "args": [
+                //"--config",
+                //"V:/productions/PRP/prp_common/prp_server.config.json",
+                //"--episode", "prp_ep121",
+                //"--tab", "PRP_121_IMPERFECT",
+            ]
+        }        
+        
+        
+        
+        
+
                 
     ]
 }

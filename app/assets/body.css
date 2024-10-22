@@ -2,7 +2,7 @@ html, body, #root, .container-fluid {
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Hide scrollbars by default */
+    overflow: auto; 
 }
 
 .container-fluid {
@@ -13,7 +13,6 @@ html, body, #root, .container-fluid {
 
 .body {
     flex: 1 1 auto;
-    overflow: auto;
     font-family: "Roboto", sans-serif;
     margin: 20px; /* 20px margin all around */
 }
@@ -43,10 +42,3 @@ html, body, #root, .container-fluid {
     background-color: rgb(244, 220, 250) !important;
 }
 
-.center-aligned-header .ag-header-cell-label {
-    justify-content: center;
-}
-
-.center-aligned-cell {
-    text-align: center;
-}
