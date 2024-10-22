@@ -5,4 +5,5 @@ matplotlib
 plotly-calplot
 dash
 dash_bootstrap_components
+dash-bootstrap-templates
 dash-ag-grid

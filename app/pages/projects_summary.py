@@ -8,9 +8,10 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 import dash
-from dash import html, dcc, callback, Input, Output, html, dcc, Input, Output, dash_table
+from dash import html, dcc, ctx, callback, Input, Output, html, dcc, Input, Output
 
 import dash_ag_grid as dag
+import dash_bootstrap_components as dbc
 
 import pandas as pd
 import plotly.express as px
@@ -52,12 +53,6 @@ group by project.name, project.id, project_status.name;
     # add caculated fields
     df = df.assign(index_count=lambda x: x.id)
     df = df.assign(perc_completed=lambda x: (x.completed_tasks / x.total_tasks * 100).round(2))
-
-    # add chart helpers
-    df = df.assign(Start = lambda x: x.start_date)
-    df = df.assign(Finish = lambda x: x.end_date)
-
-    df = df.assign(Duration = lambda x: (pd.to_datetime(x.end_date) - pd.to_datetime(x.start_date)))    
     return df
 
 def add_finish_column(timeline_df: pd.DataFrame):
@@ -91,7 +86,7 @@ def create_gantt_chart(df):
         x_end="end_date",
         y=df.project,
         color="perc_completed",
-        title="",
+        title="Task Completion",
         color_continuous_scale=[[0, "grey"], [1, "green"]],  # Red at 0%, Green at 100%
     )
 
@@ -117,17 +112,25 @@ def create_gantt_chart(df):
 
 logging.debug(f"loading data: {__name__}")
 df = load_data()
-
-# Just open projects for now
-## df = df[df['project_status'] == "Open"]
+df = add_finish_column(df)
 
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Running Projects"),
             html.Div(
                 className="nav-header",
             ),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Project x Tasks", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),          
+
             html.Div(
                 className="body",
                 children=[
@@ -152,10 +155,6 @@ def layout(**kwargs):
 
 def update_page(n_clicks):
 
-    ##dff = df.copy()
-    ##logging.debug(f"User datatable: {data}")
-    # if user deleted all rows, return the default row:
-
     columnsDefs = [
         {"field": "project", "headerName": "Project"},
         {"field": "start_date", "headerName": "Start"},
@@ -174,26 +173,13 @@ def update_page(n_clicks):
             rowData=df.to_dict("records"),
             defaultColDef=defaultColDef,
             columnDefs=columnsDefs,
-            columnSize="sizeToFit",
+            columnSize="responsiveSizeToFit",
             dashGridOptions={"animateRows": False},
-            className="ag-theme-alpine-dark",            
-            # editable=True,
-            # filter_action="native",
-            # sort_action="native",
-            # sort_mode="multi",
-            # column_selectable="single",
-            ## row_selectable="multi",
-            # row_deletable=True,
-            # selected_columns=[],
-            # selected_rows=[],
-            # page_action="native",
-            # page_current= 0,
-            # page_size= 100,
+            ## className="ag-theme-alpine-dark",            
         ),
 
     ### updated_table_as_df = add_finish_column(updated_table)
     figure = create_gantt_chart(df)
-
     return data_table, dcc.Graph(figure=figure)
 
 #@callback(

@@ -8,15 +8,18 @@ logging.basicConfig(
 )
 
 import dash
-from dash import dcc, dash_table, html, Input, Output, callback
+from dash import dcc, ctx, dash_table, html, Input, Output, callback
+import dash_bootstrap_components as dbc
 
 import pandas as pd
 import plotly.express as px
 
 from database import connect
 
-dash.register_page(__name__, order=60, path="/task-comments")
+from .page_nav import get_nav_filters
+from .calcs import load_default_calcs, get_status_description, filter_by_task_date
 
+dash.register_page(__name__, order=60, path="/task-comments")
 
 def load_data():
     logging.debug("loaded default table")
@@ -117,63 +120,14 @@ grid = None
 
 def get_nav_div():
     return html.Div(
-        className="body",
+        className="nav-header",
         children=[
-            html.Div(
-                className="nav",
-                children=[
-                    html.Div(
-                        children=[
-                            dcc.Dropdown(
-                                project_list,
-                                value=project_list,
-                                id="project_list",
-                                multi=True,
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        children=[
-                            dcc.Dropdown(
-                                department_list,
-                                value=department_list,
-                                id="department",
-                                multi=True,
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        children=[
-                            dcc.Dropdown(
-                                task_type_list,
-                                value=task_type_list,
-                                id="task_type",
-                                multi=True,
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        children=[
-                            dcc.Dropdown(
-                                task_status_list,
-                                value=task_status_list,
-                                id="task_status",
-                                multi=True,
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        id="task_comments_episode_combo",
-                        children=[
-                            dcc.Dropdown(
-                                episode_list,
-                                value=episode_list,
-                                id="episode",
-                                multi=True,
-                            ),
-                        ],
-                    ),
-                ],
+            get_nav_filters(
+                "task_comments",
+                project_list=project_list,
+                department_list=department_list,
+                task_type_list=task_type_list,
+                task_status_list=task_status_list,
             ),
         ],
     )
@@ -182,10 +136,20 @@ def get_nav_div():
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Comments History"),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Comments Data", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),     
+
             html.Div(
                 className="nav-header",
-                style={"height": "200px"},
+                style={"height": "250px"},
                 children=[get_nav_div()],
             ),
             html.Div(
@@ -204,12 +168,12 @@ def layout(**kwargs):
         ]
     )
 
-@callback(
-    Output("task_comments_episode_combo", "children"),
-
-    Input("project_list", "value"),
-    Input("department", "value"),
-)
+#@callback(
+#    Output("task_comments_episode_combo", "children"),
+#
+#    Input("project_list", "value"),
+#    Input("department", "value"),
+#)
 def update_filters(project, department):
     dff = df.copy()
 

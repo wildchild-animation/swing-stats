@@ -8,52 +8,93 @@ logging.basicConfig(
 )
 
 import dash
-from dash import dcc, dash_table, html, Input, Output, callback
+
+from dash import dcc, ctx, dash_table, html, Input, Output, callback
+import dash_bootstrap_components as dbc
 
 import pandas as pd
 import plotly.express as px
 
-from .calcs import load_default_calcs
-from .page_nav import get_nav_filters
+from .calcs import load_default_calcs, filter_by_task_date
+from .page_nav import get_nav_filters, get_episode_filter, get_task_filters
 
 from database import connect
 
 dash.register_page(__name__, order=40, path="/shot-details")
 
 DATA_TABLE_COLUMNS = [
-    #{
+    # {
     #    "id": "id",
     #    "name": "id",
     #    "visible": False,
-    #},
-    { "id": "project_code", "name": "Project", "deletable": True, "selectable": True },
-
-    { "id": "department", "name": "Department", "deletable": True, "selectable": True},
-    { "id": "episode", "name": "Episode", "deletable": True, "selectable": True},
-
-    { "id": "task_type_code", "name": "Task Type", "deletable": True, "selectable": True},
-    { "id": "task_status_code", "name": "Task Status", "deletable": True, "selectable": True},
-
-    { "id": "task_estimation", "name": "Est (D)", "deletable": True, "selectable": True},
-    { "id": "task_duration", "name": "Dur (D)", "deletable": True, "selectable": True},
-    { "id": "nb_frames", "name": "Frames", "deletable": True, "selectable": True},
-    { "id": "shot_count", "name": "Shots", "deletable": True, "selectable": True},
-
-    {"id": "calc_task_real_start_date", "name": "Task Real Start", "type": "datetime", "editable":False, "deletable": True, "selectable": True},
-    {"id": "calc_task_end_date", "name": "Task End", "type": "datetime", "editable": False, "deletable": True, "selectable": True},
-    {"id": "calc_task_start_date", "name": "Task Start", "type": "datetime", "editable":False, "deletable": True, "selectable": True},
-    {"id": "calc_task_due_date", "name": "Task Due", "type": "datetime", "editable": False, "deletable": True, "selectable": True},
-        #{"id": "Resource", "name": "Resource", "presentation": "dropdown"},
+    # },
+    {"id": "project_code", "name": "Project", "deletable": True, "selectable": True},
+    {"id": "department", "name": "Department", "deletable": True, "selectable": True},
+    {"id": "episode", "name": "Episode", "deletable": True, "selectable": True},
+    {
+        "id": "task_type_code",
+        "name": "Task Type",
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "task_status_code",
+        "name": "Task Status",
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "status_description",
+        "name": "Status",
+        "deletable": True,
+        "selectable": True,
+    },
+    {"id": "task_estimation", "name": "Est (D)", "deletable": True, "selectable": True},
+    {"id": "task_duration", "name": "Dur (D)", "deletable": True, "selectable": True},
+    {"id": "nb_frames", "name": "Frames", "deletable": True, "selectable": True},
+    {"id": "shot_count", "name": "Shots", "deletable": True, "selectable": True},
+    {
+        "id": "calc_task_real_start_date",
+        "name": "Task Real Start",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_end_date",
+        "name": "Task End",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_start_date",
+        "name": "Task Start",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_due_date",
+        "name": "Task Due",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    # {"id": "Resource", "name": "Resource", "presentation": "dropdown"},
 ]
 
 DATA_TABLE_STYLE = {
-
     "style_data_conditional": [
         {
-            'if': {'row_index': 'odd'},
-            'backgroundColor': 'rgb(220, 220, 220)',
+            "if": {"row_index": "odd"},
+            "backgroundColor": "rgb(220, 220, 220)",
         }
-    ],    
+    ],
     "style_header": {
         "color": "white",
         "backgroundColor": "#799DBF",
@@ -67,6 +108,7 @@ DATA_TABLE_STYLE = {
         {"selector": ".dropdown", "rule": "position: static"},  # makes dropdown visible
     ],
 }
+
 
 def load_data():
     logging.debug("loaded default table")
@@ -185,8 +227,15 @@ def get_nav_div():
     return html.Div(
         className="nav-header",
         children=[
-            get_nav_filters("shot_details", project_list, department_list, task_type_list, task_status_list, episode_list),
-            html.Div(),
+            get_nav_filters(
+                "shot_details",
+                project_list=project_list,
+                department_list=department_list,
+                task_type_list=task_type_list,
+                task_status_list=task_status_list,
+                episode_list=episode_list,
+                additional_children=get_task_filters("shot_details"),
+            ),
         ],
     )
 
@@ -194,7 +243,17 @@ def get_nav_div():
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Shot: Details"),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Shot Details", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),     
+
             html.Div(
                 className="nav-header",
                 style={"height": "300px"},
@@ -217,12 +276,11 @@ def layout(**kwargs):
     )
 
 
-@callback(
-    Output("shot_details_episode_filter", "children"),
-
-    Input("shot_details_project_combo", "value"),
-    Input("shot_details_department_combo", "value"),
-)
+#@callback(
+#    Output("shot_details_episode_filter", "children"),
+#    Input("shot_details_project_combo", "value"),
+#    Input("shot_details_department_combo", "value"),
+#)
 def update_filters(project, department):
     dff = df.copy()
 
@@ -234,18 +292,13 @@ def update_filters(project, department):
 
     episode_list = dff["episode"].unique().tolist()
 
-    return dcc.Dropdown(
-        episode_list,
-        value=episode_list,
-        id="shot_details_episode_combo",
-        multi=True,
-    )
+    return get_episode_filter("shot_details", episode_list)
 
 
 @callback(
     Output("shot_details_datatable", "children"),
     Output("shot_details_figure", "children"),
-
+    
     Input("shot_details_project_combo", "value"),
     Input("shot_details_department_combo", "value"),
     Input("shot_details_episode_combo", "value"),
@@ -276,16 +329,15 @@ def update_graphs(
 
     # Add additional filters for task_type, task_status, artist if needed
     data_table = dash_table.DataTable(
-        id='datatable-interactivity',
+        id="datatable-interactivity",
         columns=DATA_TABLE_COLUMNS,
-        #columns=[
+        # columns=[
         #    {"name": i, "id": i, "deletable": True, "selectable": True}
         #    for i in df.columns
-        #],
-        css=DATA_TABLE_STYLE.get("css"),    
+        # ],
+        css=DATA_TABLE_STYLE.get("css"),
         style_data_conditional=DATA_TABLE_STYLE.get("style_data_conditional"),
-        style_header=DATA_TABLE_STYLE.get("style_header"),              
-
+        style_header=DATA_TABLE_STYLE.get("style_header"),
         data=dff.to_dict("records"),
         editable=True,
         filter_action="native",

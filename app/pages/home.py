@@ -1,7 +1,7 @@
 import dash
 
 from dash import html
-from datetime import datetime
+import dash_bootstrap_components as dbc
 
 dash.register_page(__name__, path="/", order=0)
 
@@ -11,10 +11,19 @@ def layout(**kwargs):
             html.Div(
                 className="nav-header",
             ),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H2("Treehouse: Metrics Datastore", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),          
             html.Div(
                 className="body",
                 children=[
-                    html.P("Treehouse: Metrics Datastore"),
                 ]
             ),            
         ])

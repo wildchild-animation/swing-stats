@@ -8,7 +8,8 @@ logging.basicConfig(
 )
 
 import dash
-from dash import dcc, dash_table, html, Input, Output, ClientsideFunction, callback
+from dash import ctx, dcc, dash_table, html, Input, Output, ClientsideFunction, callback
+import dash_bootstrap_components as dbc
 
 import dash_ag_grid as dag
 
@@ -18,8 +19,8 @@ import pandas as pd
 
 from database import connect, close
 
-from .calcs import load_default_calcs
-from .page_nav import get_nav_filters
+from .calcs import load_default_calcs, filter_by_task_date
+from .page_nav import get_nav_filters, get_task_filters
 
 
 dash.register_page(__name__, order=15, path="/shot-data")
@@ -146,35 +147,41 @@ grid = None
 
 
 def get_nav_div():
-    user_controls = [
-        html.Button("Last Week", id="asset_data_tasks_last_week", n_clicks=0),
-        html.Button("Now", id="asset_data_tasks_now", n_clicks=0),
-        html.Button("Next Week", id="asset_data_tasks_next_week", n_clicks=0),
-    ]
-
     return html.Div(
         className="nav-header",
         children=[
             get_nav_filters(
                 "shot_data",
-                project_list,
-                department_list,
-                task_type_list,
-                task_status_list,
-                additional_children=user_controls,
+                project_list=project_list,
+                department_list=department_list,
+                task_type_list=task_type_list,
+                task_status_list=task_status_list,
+
+                additional_children=get_task_filters("shot_data"),
             ),
         ],
     )
-    
+
+
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Shot Data by Project by Department"),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Shot Data", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2",
+            ),
             html.Div(
                 style={"width": "100%", "height": "200px", "border": "1px solid black"},
                 className="nav-header",
                 children=[get_nav_div()],
             ),
+            html.Div(children=[]),
             html.Div(
                 className="body",
                 children=[
@@ -190,17 +197,27 @@ def layout(**kwargs):
 
 @callback(
     Output("shot_data_datatable", "children"),
-    
+
     Input("shot_data_project_combo", "value"),
     Input("shot_data_department_combo", "value"),
     Input("shot_data_task_type_combo", "value"),
     Input("shot_data_task_status_combo", "value"),
-    
-    Input("asset_data_tasks_last_week", "n_clicks"),
-    Input("asset_data_tasks_now", "n_clicks"),
-    Input("asset_data_tasks_next_week", "n_clicks"),       
+
+    Input("shot_data_tasks_reset", "n_clicks"),
+    Input("shot_data_tasks_last_week", "n_clicks"),
+    Input("shot_data_tasks_now", "n_clicks"),
+    Input("shot_data_tasks_next_week", "n_clicks"),
 )
-def update_page(project, department, task_type=None, task_status=None, n_clicks_last_week = False, n_clicks_now =  False, n_clicks_next_week = False):
+def update_page(
+    project,
+    department,
+    task_type=None,
+    task_status=None,
+    n_clicks_last_week=False,
+    n_clicks_now=False,
+    n_clicks_next_week=False,
+    n_clicks_reset=False,
+):
     # When the table is first rendered, `derived_virtual_data` and
     # `derived_virtual_selected_rows` will be `None`. This is due to an
     # idiosyncrasy in Dash (unsupplied properties are always None and Dash
@@ -217,32 +234,7 @@ def update_page(project, department, task_type=None, task_status=None, n_clicks_
     logging.debug(f"Current Date Time: {current_date_time}")
 
     dff = df.copy()
-    if n_clicks_last_week:
-        start = current_date_time - pd.Timedelta(days=14)
-        #end = current_date_time
-
-        logging.debug(f"Last Week: {start}")
-        dff = dff[pd.to_datetime(dff["task_due_date"]) <= start]        
-        #dff = dff[
-        #    pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        #]
-    elif n_clicks_now:
-        start = current_date_time
-        end = current_date_time + pd.Timedelta(days=14)
-
-        logging.debug(f"Now: {start} - {end}")
-        dff = dff[
-            pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        ]
-    elif n_clicks_next_week:
-        #start = current_date_time
-        end = current_date_time + pd.Timedelta(days=14)
-
-        logging.debug(f"Next Week: {end}")
-        #dff = dff[
-        #    pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        #]
-        dff = dff[pd.to_datetime(dff["task_due_date"]) <= end]      
+    dff = filter_by_task_date(dff, ctx, "shot_data")
 
     if project:
         dff = dff[dff["project"].isin(project)]
@@ -328,23 +320,9 @@ def update_page(project, department, task_type=None, task_status=None, n_clicks_
         rowData=dff.to_dict("records"),
         defaultColDef=defaultColDef,
         columnDefs=columnsDefs,
-        columnSize="sizeToFit",
-        ## dashGridOptions=dashGridOptions,
-        className="ag-theme-alpine-dark",
-        # style={ "min-height": "200px", "height": "100%", "width": "100%"}
+        columnSize="responsiveSizeToFit",
         style={"height": "600px", "width": "100%"},
-        ##editable=True,
-        # filter_action="native",
-        # sort_action="native",
-        # sort_mode="multi",
-        # column_selectable="single",
-        ## row_selectable="multi",
-        # row_deletable=True,
-        # selected_columns=[],
-        # selected_rows=[],
-        # page_action="native",
-        # page_current= 0,
-        # page_size= 100,
+        className="ag-theme-alpine-dark",
     )
 
     return data_table

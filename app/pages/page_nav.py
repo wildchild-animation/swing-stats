@@ -1,5 +1,5 @@
 from dash import dcc, html
-
+import dash_bootstrap_components as dbc
 
 def get_nav_filters(
     prefix: str,
@@ -7,6 +7,7 @@ def get_nav_filters(
     department_list=None,
     task_type_list=None,
     task_status_list=None,
+    artist_list=None,
     episode_list=None,
 
     additional_children=[],
@@ -63,18 +64,23 @@ def get_nav_filters(
 
     if episode_list is not None:
         children.append(
+            get_episode_filter(prefix, episode_list)
+        )
+
+    if artist_list is not None:
+        children.append(
             html.Div(
-                id=f"{prefix}_episode_filter",
+                id=f"{prefix}_artist_filter",
                 children=[
                     dcc.Dropdown(
-                        episode_list,
-                        value=episode_list,
-                        id=f"{prefix}_episode_combo",
+                        artist_list,
+                        value=artist_list,
+                        id=f"{prefix}_artist_combo",
                         multi=True,
                     )
                 ],
             )
-        )
+        )        
 
     children.extend(additional_children)
 
@@ -86,3 +92,55 @@ def get_nav_filters(
             ),
         ],
     )
+
+def get_episode_filter(prefix: str, episode_list=None):
+        
+    return html.Div(
+            id=f"{prefix}_episode_filter",
+            children=[
+                dcc.Dropdown(
+                    episode_list,
+                    value=episode_list,
+                    id=f"{prefix}_episode_combo",
+                    multi=True,
+                )
+            ],
+        )    
+
+
+def get_task_filters(prefix: str):
+        
+    return[
+        dbc.Button(
+            "Due Last Week",
+            id=f"{prefix}_tasks_last_week",
+            n_clicks=0,
+            style={"bg_color": "error"},
+            size="sm",
+            className="mr-2",
+        ),
+        dbc.Button(
+            "Now",
+            id=f"{prefix}_tasks_now",
+            n_clicks=0,
+            color="success",
+            size="sm",
+            className="mr-2",
+        ),
+        dbc.Button(
+            "Reset",
+            id=f"{prefix}_tasks_reset",
+            n_clicks=0,
+            color="info",
+            size="sm",
+            className="mr-2",
+        ),
+        dbc.Button(
+            "Next Week",
+            id=f"{prefix}_tasks_next_week",
+            n_clicks=0,
+            color="warning",
+            size="sm",
+            className="mr-2",
+        ),    
+    ]

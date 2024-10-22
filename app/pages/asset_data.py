@@ -8,17 +8,18 @@ logging.basicConfig(
 )
 
 import dash
-from dash import dcc, dash_table, html, Input, Output, ClientsideFunction, callback
+from dash import dcc, ctx, dash_table, html, Input, Output, ClientsideFunction, callback
 
 import dash_ag_grid as dag
+import dash_bootstrap_components as dbc
 
 import numpy as np
 import pandas as pd
 
 from database import connect
 
-from .calcs import load_default_calcs
-from .page_nav import get_nav_filters
+from .calcs import load_default_calcs, filter_by_task_date
+from .page_nav import get_nav_filters, get_task_filters
 
 dash.register_page(__name__, order=20, path="/asset-data")
 
@@ -198,22 +199,16 @@ grid = None
 
 
 def get_nav_div():
-    user_controls = [
-        html.Button("Last Week", id="asset_data_tasks_last_week", n_clicks=0),
-        html.Button("Now", id="asset_data_tasks_now", n_clicks=0),
-        html.Button("Next Week", id="asset_data_tasks_next_week", n_clicks=0),
-    ]
-
     return html.Div(
         className="nav-header",
         children=[
             get_nav_filters(
                 "asset_data",
-                project_list,
-                department_list,
-                task_type_list,
-                task_status_list,
-                additional_children=user_controls,
+                project_list=project_list,
+                department_list=department_list,
+                task_type_list=task_type_list,
+                task_status_list=task_status_list,
+                additional_children=get_task_filters("asset_data"),
             ),
         ],
     )
@@ -222,7 +217,17 @@ def get_nav_div():
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Asset Data by Project by Department"),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Asset Data", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),     
+
             html.Div(
                 style={"width": "100%", "height": "200px", "border": "1px solid black"},
                 className="nav-header",
@@ -243,6 +248,7 @@ def layout(**kwargs):
         ]
     )
 
+
 @callback(
     Output("asset_data_datatable", "children"),
     Input("asset_data_project_combo", "value"),
@@ -250,11 +256,21 @@ def layout(**kwargs):
     Input("asset_data_task_type_combo", "value"),
     Input("asset_data_task_status_combo", "value"),
 
+    Input("asset_data_tasks_reset", "n_clicks"),
     Input("asset_data_tasks_last_week", "n_clicks"),
     Input("asset_data_tasks_now", "n_clicks"),
-    Input("asset_data_tasks_next_week", "n_clicks"),    
+    Input("asset_data_tasks_next_week", "n_clicks"),
 )
-def update_graphs(project, department, task_type=None, task_status=None, n_clicks_last_week = False, n_clicks_now =  False, n_clicks_next_week = False):
+def update_graphs(
+    project,
+    department,
+    task_type=None,
+    task_status=None,
+    n_clicks_last_week=False,
+    n_clicks_now=False,
+    n_clicks_next_week=False,
+    n_clicks_task_reset=False,
+):
     # When the table is first rendered, `derived_virtual_data` and
     # `derived_virtual_selected_rows` will be `None`. This is due to an
     # idiosyncrasy in Dash (unsupplied properties are always None and Dash
@@ -271,32 +287,7 @@ def update_graphs(project, department, task_type=None, task_status=None, n_click
     logging.debug(f"Current Date Time: {current_date_time}")
 
     dff = df.copy()
-    if n_clicks_last_week:
-        start = current_date_time - pd.Timedelta(days=14)
-        #end = current_date_time
-
-        logging.debug(f"Last Week: {start}")
-        dff = dff[pd.to_datetime(dff["task_due_date"]) <= start]        
-        #dff = dff[
-        #    pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        #]
-    elif n_clicks_now:
-        start = current_date_time
-        end = current_date_time + pd.Timedelta(days=14)
-
-        logging.debug(f"Now: {start} - {end}")
-        dff = dff[
-            pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        ]
-    elif n_clicks_next_week:
-        #start = current_date_time
-        end = current_date_time + pd.Timedelta(days=14)
-
-        logging.debug(f"Next Week: {end}")
-        #dff = dff[
-        #    pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
-        #]
-        dff = dff[pd.to_datetime(dff["task_due_date"]) <= end]        
+    dff = filter_by_task_date(dff, ctx, "asset_data")
 
     if project:
         dff = dff[dff["project"].isin(project)]
@@ -316,7 +307,7 @@ def update_graphs(project, department, task_type=None, task_status=None, n_click
         rowData=dff.to_dict("records"),
         defaultColDef=defaultColDef,
         columnDefs=columnsDefs,
-        columnSize="sizeToFit",
+        columnSize="responsiveSizeToFit",
         dashGridOptions={"animateRows": False},
         className="ag-theme-alpine-dark",
         style={"height": "600px", "width": "100%"},

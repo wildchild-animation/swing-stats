@@ -21,7 +21,7 @@ logger.addHandler(console_handler)
 
 import pandas as pd
 
-def load_default_calcs(df: pd.DataFrame) -> str:
+def load_default_calcs(df: pd.DataFrame) -> pd.DataFrame:
 
     # Calculate duration in days
     df = df.assign(
@@ -49,6 +49,16 @@ def load_default_calcs(df: pd.DataFrame) -> str:
 
     df.reindex()
     return df
+
+def load_graph_calcs(df: pd.DataFrame) -> pd.DataFrame:
+    # add chart helpers
+    df = df.assign(Start = lambda x: x.task_real_start_date)
+    df = df.assign(Finish = lambda x: x.task_end_date)
+
+    df = df.assign(Duration = lambda x: (pd.to_datetime(x.task_real_start_date) - pd.to_datetime(x.task_end_date)))     
+    df.reindex()
+    return df    
+
 
 
 
@@ -137,3 +147,36 @@ def str_parse_date(date_item):
     date = date_item.strftime("%Y-%m-%d")        
 
     return date    
+
+
+def filter_by_task_date(dff: pd.DataFrame, ctx, prefix: str) -> pd.DataFrame:
+    """
+    Filter the dataframe by task date
+    """
+    current_date_time = pd.Timestamp.now()    
+
+    if f"{prefix}_tasks_last_week" == ctx.triggered_id:
+        start = current_date_time - pd.Timedelta(days=14)
+
+        logging.debug(f"Last Week: {start}")
+        df = dff[
+            (pd.to_datetime(dff["task_due_date"], errors='coerce') <= start) |
+            (pd.to_datetime(dff["task_start_date"], errors='coerce') >= start)
+        ]
+    elif f"{prefix}_tasks_now" == ctx.triggered_id:
+        start = current_date_time
+        end = current_date_time + pd.Timedelta(days=14)
+
+        logging.debug(f"Now: {start} - {end}")
+        dff = dff[
+            pd.to_datetime(dff["task_due_date"], format="mixed").between(start, end)
+        ]
+    elif f"{prefix}_tasks_next_week" == ctx.triggered_id:
+        end = current_date_time + pd.Timedelta(days=14)
+
+        logging.debug(f"Next Week: {end}")
+        dff = dff[pd.to_datetime(dff["task_due_date"]) <= end]
+    elif f"{prefix}_tasks_reset" == ctx.triggered_id:
+        dff.reindex()
+
+    return dff

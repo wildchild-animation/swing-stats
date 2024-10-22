@@ -1,12 +1,12 @@
 .app-header {
 /*    height: 60px; */
 /*    line-height: 24px;*/
-    border-bottom: thin lightgrey solid;
+    /* border-bottom: thin lightgrey solid;*/
     font-size: large;
 }
 
 .nav-header {
-    height: 60px;
+    /* height: 60px; */
     border-bottom: thin rgb(139, 133, 133) solid;
     font-size: small;
     /* background-color: aquamarine; */

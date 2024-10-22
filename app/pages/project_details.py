@@ -8,12 +8,13 @@ logging.basicConfig(
 )
 
 import dash
-from dash import dcc, dash_table, html, Input, Output, callback
+from dash import ctx, dcc, dash_table, html, Input, Output, callback
+import dash_bootstrap_components as dbc
 
 import pandas as pd
 import plotly.express as px
 
-from .calcs import load_default_calcs
+from .calcs import load_default_calcs, filter_by_task_date
 from .page_nav import get_nav_filters
 
 from database import connect
@@ -21,39 +22,72 @@ from database import connect
 dash.register_page(__name__, order=30, path="/project-details")
 
 DATA_TABLE_COLUMNS = [
-    #{
+    # {
     #    "id": "id",
     #    "name": "id",
     #    "visible": False,
-    #},
-    { "id": "project_code", "name": "Project", "deletable": True, "selectable": True },
-
-    { "id": "department", "name": "Department", "deletable": True, "selectable": True},
-    { "id": "episode", "name": "Episode", "deletable": True, "selectable": True},
-
-    { "id": "task_type_code", "name": "Task Type", "deletable": True, "selectable": True},
-    { "id": "task_status_code", "name": "Task Status", "deletable": True, "selectable": True},
-
-    { "id": "task_estimation", "name": "Est (D)", "deletable": True, "selectable": True},
-    { "id": "task_duration", "name": "Dur (D)", "deletable": True, "selectable": True},
-    { "id": "nb_frames", "name": "Frames", "deletable": True, "selectable": True},
-    { "id": "shot_count", "name": "Shots", "deletable": True, "selectable": True},
-
-    {"id": "calc_task_real_start_date", "name": "Task Real Start", "type": "datetime", "editable":False, "deletable": True, "selectable": True},
-    {"id": "calc_task_end_date", "name": "Task End", "type": "datetime", "editable": False, "deletable": True, "selectable": True},
-    {"id": "calc_task_start_date", "name": "Task Start", "type": "datetime", "editable":False, "deletable": True, "selectable": True},
-    {"id": "calc_task_due_date", "name": "Task Due", "type": "datetime", "editable": False, "deletable": True, "selectable": True},
-    
-    #{"id": "Resource", "name": "Resource", "presentation": "dropdown"},
+    # },
+    {"id": "project_code", "name": "Project", "deletable": True, "selectable": True},
+    {"id": "department", "name": "Department", "deletable": True, "selectable": True},
+    {"id": "episode", "name": "Episode", "deletable": True, "selectable": True},
+    {
+        "id": "task_type_code",
+        "name": "Task Type",
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "task_status_code",
+        "name": "Task Status",
+        "deletable": True,
+        "selectable": True,
+    },
+    {"id": "task_estimation", "name": "Est (D)", "deletable": True, "selectable": True},
+    {"id": "task_duration", "name": "Dur (D)", "deletable": True, "selectable": True},
+    {"id": "nb_frames", "name": "Frames", "deletable": True, "selectable": True},
+    {"id": "shot_count", "name": "Shots", "deletable": True, "selectable": True},
+    {
+        "id": "calc_task_real_start_date",
+        "name": "Task Real Start",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_end_date",
+        "name": "Task End",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_start_date",
+        "name": "Task Start",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    {
+        "id": "calc_task_due_date",
+        "name": "Task Due",
+        "type": "datetime",
+        "editable": False,
+        "deletable": True,
+        "selectable": True,
+    },
+    # {"id": "Resource", "name": "Resource", "presentation": "dropdown"},
 ]
 
 DATA_TABLE_STYLE = {
     "style_data_conditional": [
         {
-            'if': {'row_index': 'odd'},
-            'backgroundColor': 'rgb(220, 220, 220)',
+            "if": {"row_index": "odd"},
+            "backgroundColor": "rgb(220, 220, 220)",
         }
-    ],    
+    ],
     "style_header": {
         "color": "white",
         "backgroundColor": "#799DBF",
@@ -162,43 +196,46 @@ logging.debug(f"loading data: {__name__}")
 df = load_data()
 df = load_default_calcs(df)
 
-# Just open projects for now
-## df = df[df['project_status'] == "Open"]
-
-# df = df.assign(Start = lambda x: pd.to_datetime(x.task_start_date))
-# df = df.assign(Finish = lambda x: pd.to_datetime(x.task_end_date))
-# df = df.assign(Duration = lambda x: (pd.to_datetime(x.task_end_date) - pd.to_datetime(x.task_start_date)))
-
-
-# set default dates
-
-
 project_list = df["project"].unique().tolist()
 department_list = df["department"].unique().tolist()
 episode_list = df["episode"].unique().tolist()
 task_type_list = df["task_type"].unique().tolist()
 task_status_list = df["task_status"].unique().tolist()
-#artist_list = df["artists"].unique().tolist()
 
 grid = None
-
 
 def get_nav_div():
     return html.Div(
         className="nav-header",
         children=[
-            get_nav_filters("project_details", project_list, department_list, task_type_list, task_status_list, episode_list),
-            html.Div(
-                children = [
-                ]
-            )
+            get_nav_filters(
+                "project_details",
+                project_list=project_list,
+                department_list=department_list,
+                task_type_list=task_type_list,
+                task_status_list=task_status_list,
+                episode_list=episode_list,
+                additional_children=[],
+            ),
+            html.Div(children=[]),
         ],
     )
+
 
 def layout(**kwargs):
     return html.Div(
         [
-            html.H1("Project Details"),
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.H3("Project Details", className="card-title"),
+                    ]
+                ),
+                color="info",
+                inverse=True,
+                className="mb-2"
+            ),     
+
             html.Div(
                 className="nav-header",
                 style={"height": "300px"},
@@ -220,12 +257,13 @@ def layout(**kwargs):
         ]
     )
 
-@callback(
-    Output("project_details_episode_filter", "children"),
 
-    Input("project_details_project_combo", "value"),
-    Input("project_details_department_combo", "value"),
-)
+#@callback(
+#    Output("project_details_episode_filter", "children"),
+#    
+#    Input("project_details_project_combo", "value"),
+#    Input("project_details_department_combo", "value"),
+#)
 def update_filters(project, department):
     dff = df.copy()
 
@@ -245,21 +283,17 @@ def update_filters(project, department):
     )
 
 
-
 @callback(
     Output("project_details_datatable", "children"),
     Output("project_details_figure", "children"),
-
     Input("project_details_project_combo", "value"),
     Input("project_details_department_combo", "value"),
     Input("project_details_task_type_combo", "value"),
     Input("project_details_task_status_combo", "value"),
-    Input("project_details_episode_combo", "value"),    
-    # Input("task_status", "value"),        
+    Input("project_details_episode_combo", "value"),
+    # Input("task_status", "value"),
 )
-def update_page(
-    project, department, task_type = None, task_status = None, episode = None
-):
+def update_page(project, department, task_type=None, task_status=None, episode=None):
     dff = df.copy()
 
     if project:
@@ -278,20 +312,19 @@ def update_page(
         dff = dff[dff["task_status"].isin(task_status)]
 
     if episode:
-        dff = dff[dff["episode"].isin(episode)]                        
+        dff = dff[dff["episode"].isin(episode)]
 
     # Add additional filters for task_type, task_status, artist if needed
     data_table = dash_table.DataTable(
-        id='datatable-interactivity',
+        id="datatable-interactivity",
         columns=DATA_TABLE_COLUMNS,
-        #columns=[
+        # columns=[
         #    {"name": i, "id": i, "deletable": True, "selectable": True}
         #    for i in df.columns
-        #],
-        css=DATA_TABLE_STYLE.get("css"),    
+        # ],
+        css=DATA_TABLE_STYLE.get("css"),
         style_data_conditional=DATA_TABLE_STYLE.get("style_data_conditional"),
-        style_header=DATA_TABLE_STYLE.get("style_header"),              
-
+        style_header=DATA_TABLE_STYLE.get("style_header"),
         data=dff.to_dict("records"),
         editable=True,
         filter_action="native",
@@ -318,10 +351,6 @@ def update_page(
 
     # add chart helpers
     summary_df = dff.copy()
-    summary_df = summary_df.assign(Start=lambda x: x.task_start_date)
-    summary_df = summary_df.assign(Finish=lambda x: x.task_end_date)
-    #
-    # summary_df = summary_df.assign(Duration = lambda x: (pd.to_datetime(x.task_end_date) - pd.to_datetime(x.task_start_date)))
 
     summary_df = (
         summary_df.groupby(
@@ -339,7 +368,7 @@ def update_page(
         .sum(numeric_only=True)
         .reset_index()
     )
-    print(summary_df)
+    ## print(summary_df)
     ## fig = px.bar(summary_df, x=df.index, y="nb_frames")
 
     fig = px.timeline(
